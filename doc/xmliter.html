@@ -1,0 +1,319 @@
+<?xml version='1.0'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+  <head>
+    <title>xmliter: iterate over XML trees</title>
+  </head>
+  
+  <body>
+    <h1>xmliter: iterate over XML trees</h1>
+    
+    <p>
+      This package supplies a number of tools for iterating through
+      child elements of an XmlTree.
+    </p>
+
+    <h3>xattrpairs(tree)</h3>
+
+    <p>
+      Return an iterator over the attributes of <code>tree</code>,
+      returning attribute names and values. Note that this only
+      returns keys of type string.  (LuaExpat uses numeric keys to
+      mark attributes that were defaulted from the DTD.)
+    </p>
+
+    <h3>xmliter.getn(tree)</h3>
+
+    <p>
+      Counts the children of <code>tree</code>; roughly equivalent to
+      <code>table.getn</code>.  This is necessary because
+      <code>table.getn(tree)</code> does not explicitly call for
+      <code>tree.n</code>, instead using <code>rawget(tree,
+      "n")</code>.  Fancy tree implementations may need to use a
+      metatable call to find the number of children.
+    </p>
+
+    <h3>xpairs(tree)</h3>
+
+    <p>
+      Return an iterator over <code>tree</code> that returns each
+      index and its child.  Example:
+    </p>
+
+    <pre
+>parent = lazytree.parsestring("&lt;p&gt;a&lt;z&gt;cdef&lt;/z&gt;b&lt;/p&gt;")
+
+for i,x in xpairs(parent) do
+  if type(x) == "string" then
+    print("string:", x)
+  else
+    print("tag:", x.name)
+  end
+end</pre>
+
+    <p>
+      prints:
+    </p>
+
+<pre
+>string:	a
+tag:	z
+string:	b</pre>
+
+    <p>
+      Note that it does not descend into child elements (as "cdef" was
+      not printed).
+    </p>
+
+    <h3>xnpairs(tree)</h3>
+
+    <p>
+      Return an iterator over <code>tree</code> that ignores character
+      data elements.  It returns an index, subtree, and element name
+      (which may be ignored):
+    </p>
+
+    <pre
+>for i,x in xnpairs(parent) do
+  print("tag:", x.name)
+end
+
+for i,x,name in xnpairs(parent) do
+  print("tag:", name)
+end</pre>
+
+    <p>
+      Either of the above prints:
+    </p>
+
+    <pre
+>tag:	z</pre>
+
+    <h2>Generic filtering</h2>
+
+    <h3>xmliter.switch(parent, ftable, [opts])</h3>
+
+    <p>
+      Iterate through the children of <code>parent</code>, using function
+      definitions from <code>ftable</code>.
+    </p>
+
+    <p>
+      Each child of <code>parent</code> is looked up in
+      <code>ftable</code>.  For a child "<code>&lt;foo/&gt;</code>",
+      the function <code>ftable.foo(child, parent)</code> is called.
+      For character data, <code>ftable[""](str, parent)</code> is
+      called.  If an unknown tag is found, the function
+      <code>ftable[true](parent, child)</code> is called.
+    </p>
+
+    <p>
+      If such an entry in ftable does not exist, the child is ignored
+      (unless certain options are set.)
+    </p>
+
+    <p>
+      If the handler returns a true value, <code>switch</code> stops
+      iterating and returns a (possibly different) true value along
+      with any second return value. (Interaction with consumption TBD,
+      and possibly using the first return value as a count of how many
+      levels to escape out of.)
+    </p>
+
+    <p>
+      Example:
+    </p>
+
+<pre
+>s = '&lt;log&gt;&lt;entry time="12:30"/&gt;&lt;checkpoint/&gt;&lt;entry time="12:35"/&gt;&lt;/log&gt;'
+parent = lazytree.parsestring(s)
+ftable = {
+  entry=function (entry, parent)
+          print (entry.attr.time)
+        end
+}
+xmliter.switch(parent, ftable)</pre>
+ 
+    <p>
+      prints:
+    </p>
+
+<pre
+>12:30
+12:35</pre>
+
+    <p>
+      (Note that since we do not care about the parent, the function
+      could have been declared as "<code>function (entry)</code>".)
+    </p>
+
+    <p>
+      Entries may contain nested <code>ftable</code>s instead of
+      functions; <code>switch</code> (or <code>switch_c</code>) is
+      called recursively with the nested ftable.
+    </p>
+
+    <p>
+      Example:
+    </p>
+
+    <pre
+>s = [[
+&lt;log&gt;
+  &lt;entry id='0'&gt;
+    &lt;time clock="12:50"/&gt;
+    &lt;msg text="foo"/&gt;
+    &lt;extra/&gt;
+  &lt;/entry&gt;
+&lt;/log&gt;]]
+parent = lazytree.parsestring(s)
+ftable = {
+  entry={
+    time=function (time)
+           print (time.attr.clock)
+         end;
+    msg=function (msg)
+          print (msg.attr.text)
+        end;
+  }
+}
+xmliter.switch(parent, ftable)</pre>
+
+    <p>
+      prints:
+    </p>
+
+    <pre
+>12:50
+foo</pre>
+
+    <p>
+      As an aid to use of nested ftables, <code>ftable[0](parent,
+      [previous_parent])</code> is called before any children are
+      processed, and <code>ftable[-1](parent, [previous_parent])</code> is called
+      after all children have been processed:
+    </p>
+
+<pre
+>parent = lazytree.parsestring(s)
+ftable = {
+  entry={
+    [0]=function (entry)
+      print("id ", entry.attr.id)
+      entry.message_txt = "(no message)"
+      entry.time_txt = "(no time)"
+      entry.level_txt = "(no level)"
+    end;
+    time=function (time, entry)
+      entry.time_txt = time.attr.clock
+    end;
+    msg=function (msg, entry)
+      entry.message_txt = msg.attr.text
+    end;
+    [-1]=function (entry)
+      print("message", entry.message_txt, entry.time_txt, entry.level_txt)
+    end;
+  }
+}
+xmliter.switch(parent, ftable)</pre>
+
+    <p>
+      prints:
+    </p>
+
+    <pre
+>id 	0
+message	foo	12:50	(no level)</pre>
+
+    <p>
+      This takes advantage of the fact that XML trees do not mind
+      extraneous table entries (as long as you avoid "<code>n</code>",
+      "<code>attr</code>", and "<code>name</code>" and keys starting
+      with an underscore.)
+    </p>
+
+    <p>
+      Nested tables may not be the most concise way to express code,
+      however.  A simpler way of writing the previous would be:
+    </p>
+
+    <pre
+>parent = lazytree.parsestring(s)
+ftable = {
+  entry=function (entry)
+    print("id", entry.attr.id)
+    local v = xmlview.element(entry)
+    local message_txt = "(no message)"
+    local time_txt = "(no time)"
+    local level_txt = "(no level)"
+    if v.time then time_txt = v.time.attr.clock end
+    if v.msg then message_txt = v.msg.attr.text end
+    print("message", message_txt, time_txt, level_txt)
+ end
+}
+xmliter.switch(parent, ftable)</pre>
+
+    <p>
+      Any use of <code>[0]</code> and <code>[-1]</code> may be
+      rewritten in terms of a function that performs the
+      <code>[0]</code> action, recursively calls <code>switch</code>,
+      and performs the <code>[-1]</code> action.
+    </p>
+
+    <p>
+      Recursive searches for elements can be performed by setting the
+      <code>[true]</code> action to the ftable itself.  For example:
+    </p>
+    
+    <pre
+>parent = lazytree.parsefile("xhtml-spec.xml")
+local count = 0
+local ftable
+ftable = {
+  a=function (a)
+    if a.attr.href then
+      count = count + 1
+    end
+    -- uncomment to search for &lt;a&gt; elements inside other &lt;a&gt; elements
+    -- xmliter.switch(a, ftable)
+  end
+}
+ftable[true] = ftable
+xmliter.switch(parent, ftable)
+print(count)</pre>
+
+    <p>
+      (Note that we cannot write "<code>local
+      ftable={... switch(ftable) }</code>" as <code>ftable</code> will
+      not be in scope for itself.)
+    </p>
+
+    <h3>Options processing</h3>
+
+    <p>
+      The <code>opts</code> table controls various options for
+      processing.
+    </p>
+
+    <p>
+      If <code>opts.no_chardata</code> is set, any unexpected
+      character data (that is, not handled by an
+      <code>ftable[""]</code> entry) results in an error.
+    </p>
+
+    <p>
+      If <code>opts.no_tags</code> is set, any unexpected child
+      elements (those not mentioned in <code>ftable</code> or handled
+      by an <code>ftable[true]</code> entry) result in an error.
+    </p>
+
+    <p>
+      If <code>opts.parent</code> is set, it is passed to functions as
+      the parent node of the <code>parent</code> argument.  This is
+      useful when calling <code>switch</code> recursively if the new
+      ftable contains <code>[0]</code> or <code>[-1]</code> handlers.
+    </p>
+
+
+  </body>
+</html>
