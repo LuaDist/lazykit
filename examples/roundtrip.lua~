@@ -1,0 +1,16 @@
+require "lxptree"
+require "lazytree"
+require "ioxmlgen"
+require "concatxmlgen"
+
+s = [[
+<a foo='bar' baz='"'>
+  <b/>
+  <mixed>a<b>b</b></mixed>
+</a>
+  ]]
+
+lz = lazytree.parsestring(s)
+ioxmlgen.write_xml(io.stdout, lz)
+print("----")
+print(concatxmlgen.return_xml(lz))

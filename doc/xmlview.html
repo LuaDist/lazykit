@@ -1,0 +1,112 @@
+<?xml version='1.0'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+  <head>
+    <title>xmlview: convenient access to XML trees</title>
+  </head>
+  
+  <body>
+    <h1>xmlview: convenient access to XML trees</h1>
+    
+    <p>
+      This package is a work in progress for XmlTree.  Quick summary:
+    </p>
+
+    <h3>xstring(node)</h3>
+
+    <p>
+      Returns the immediate string contents of node (which may be
+      either a tree or, trivially, a string.)  Returns
+      <code>nil,errormessage</code> if <code>node</code> is a tree
+      with mixed content.
+    </p>
+
+    <h3>xtext(node)</h3>
+
+    <p>
+      Recursively returns the string contents of <code>node</code>,
+      descending into any child elements.
+    </p>
+
+    <h2>View objects</h2>
+
+    <p>
+      Views provide easy random access to the children of a XmlTree.
+      They are currently read-only.
+    </p>
+      
+    <p>
+      The current implementation completely populates them on first
+      access, but lazy implementations are possible.
+    </p>
+
+    <h3>xmlview.string(tree)</h3>
+
+    <p>
+      Create a string view on <code>tree</code>.  The view contains
+      all immediate children of <code>tree</code> that have unique
+      element names and do not contain mixed content.  Accessing names
+      that are not unique or have mixed content results in an error.
+      Example:
+    </p>
+
+    <pre
+>&lt;logentry&gt;
+  &lt;type&gt;INFO&lt;/info&gt;
+  &lt;time&gt;12:50&lt;/time&gt;
+  &lt;receivedfrom&gt;upstream1&lt;/receivedfrom&gt;
+  &lt;receivedfrom&gt;upstream2&lt;/receivedfrom&gt;
+  &lt;body&gt;This is a &lt;b&gt;test message&lt;/b&gt;&lt;/body&gt;
+  &lt;empty/&gt;
+&lt;/logentry&gt;
+
+tree=lxptree.parsestring(s)
+sv = xmlview.string(tree)
+print(sv.type)          -- "INFO"
+print(sv.time)          -- "12:50"
+print(sv.empty)         -- ""
+print(sv.receivedfrom)  -- error "contains duplicate content"
+print(sv.body)          -- error "contains mixed content"</pre>
+
+    <h3>xmlview.text(tree)</h3>
+    
+    <p>
+      Create a text view on <code>tree</code>.  The view contains all
+      immediate children of <code>tree</code> that have unique element
+      names.  <code>xtext</code> is called on those children,
+      providing the recursive character data content of those nodes.
+      Accessing names that are not unique results in an error.
+    </p>
+
+    <h3>xmlview.elements(tree)</h3>
+
+    <p>
+      Create an elements view on <code>tree</code>.  The view contains
+      a list of all child element trees with the given name.  Example:
+    </p>
+
+    <pre
+>ev = xmlview.elements(tree)
+ev.type => {{name="type", "INFO", n=1}, n=1}
+ev.receivedfrom => {
+  {name="receivedfrom", "upstream1", n=1}, 
+  {name="receivedfrom", "upstream2", n=1},
+  n=2
+}</pre>
+
+    <h2>What's missing</h2>
+
+    <p>
+      <code>element</code> would provide named elements if they were
+      unique.
+    </p>
+
+    <p>
+      <code>firststring</code>, <code>firsttext</code>, and
+      <code>firstelement</code> would be views that did not have to
+      iterate through the entire tree, as they would not have to
+      guarantee uniqueness.  This could be friendlier to lazy trees.
+    </p>
+
+  </body>
+</html>

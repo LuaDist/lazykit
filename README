@@ -1,0 +1,10 @@
+lazykit 0.1: tools for XML processing
+
+Copyright 2004, Jay Carlson.
+This code may be redistributed under the same terms as the Lua 5.0 license.
+
+See doc/ for documentation, and examples/ for some sample code.
+
+ciostring/ contains a C implementation of iostring, which is
+significantly more efficient than the pure Lua version.  If you
+install it, edit xmlgen.lua.
