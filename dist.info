@@ -1,0 +1,14 @@
+--- This file is part of LuaDist project
+
+name = "lazykit"
+version = "0.1"
+
+desc = "lazykit: tools for XML processing"
+license = "MIT/X11"
+maintainer = "Peter Kapec"
+url = "http://lua-users.org/wiki/LazyKit"
+
+depends = {
+   "lua ~> 5.1",
+   "luaexpat >=1.1"
+}
