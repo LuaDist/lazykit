@@ -6,7 +6,8 @@
 
 project ( lazykit C )
 cmake_minimum_required ( VERSION 2.6 )
-include ( dist.cmake )
+include ( cmake/dist.cmake )
+include ( lua )
 
 # LazyKit C modules
 install_lua_module ( ciostring ciostring/iostring.c )
