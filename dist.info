@@ -3,6 +3,7 @@
 name = "lazykit"
 version = "0.1"
 
+author = "Jay Carlson"
 desc = "lazykit: tools for XML processing"
 license = "MIT/X11"
 maintainer = "Peter Kapec"
