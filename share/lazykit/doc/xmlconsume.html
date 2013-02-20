@@ -1,0 +1,133 @@
+<?xml version='1.0'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+  <head>
+    <title>Consuming iterators for XML trees</title>
+  </head>
+  
+  <body>
+    <h1>Consuming iterators for XML trees</h1>
+
+    <p>
+      See XmlIter for non-consuming versions of these functions.
+    </p>
+    
+    <p>
+      <code>xpairs_c(tree)</code>, <code>xnpairs_c(tree)</code>, and
+      <code>xmliter.switch_c(parent, ftable, [opts])</code> also
+      iterate over the children of <code>tree</code>, but they
+      <dfn>consume</dfn> the children of <code>tree</code> as they
+      process it.  The following two fragments have similar semantics:
+    </p>
+
+    <pre
+>for i,x in xpairs(parent) do
+  parent[i] = nil
+  do_something_with(x)
+end
+
+for i,x in xpairs_c(parent) do
+  do_something_with(x)
+end</pre>
+
+    <p>
+      Using a consuming iterator means that you do not care about
+      accessing previously processed trees through parent.  However,
+      you can still save the current tree for later use:
+    </p>
+
+    <pre
+>for i,x,name in xnpairs(parent) do
+  if x.name == "xref" then
+    table.insert(references, x)
+  end
+end</pre>
+
+    <p>
+      The primary reason to use consuming iterators is to reduce
+      memory usage.  When using conventional XML trees, this may help
+      a little if you are building up another data structure while
+      tearing down the XML tree; parts of the tree you have already
+      processed are eligible for garbage collection, saving space for
+      your new structure.
+    </p>
+
+    <p>
+      However, when using LazyTree XML trees, memory usage can be
+      vastly smaller.  Consider processing a large log file:
+    </p>
+
+<pre
+>&lt;log&gt;
+  &lt;entry&gt;[....]&lt;/entry&gt;
+  &lt;entry&gt;[....]&lt;/entry&gt;
+  [...millions of elements later...]
+  &lt;entry&gt;[....]&lt;/entry&gt;
+&lt;/log&gt;</pre>
+
+    <p>
+      With a conventional XML tree, processing this requires space
+      linearly proportional to the size of all the
+      <code>&lt;entry&gt;</code> elements.  With normal iterators and
+      a lazy tree, this requires space linearly proportional to all
+      previously processed <code>&lt;entry&gt;</code> elements (as
+      future elements are only read on demand.)  With consuming
+      iterators and a lazy tree, processing only requires space
+      proportional to the size of a single <code>&lt;entry&gt;</code>
+      element, as previously processed <code>&lt;entry&gt;</code>s
+      have been forgotten.
+    </p>
+
+    <p>
+      A secondary benefit to consuming iterators is that they may
+      reduce CPU usage a small amount.  The Lua 5.0 garbage collector
+      does not have to work as hard during collections when less live
+      data is present.  (??? reread the GC algorithm to make sure this
+      is true, have timing numbers though.)
+    </p>
+
+    <p>
+      What is really going on here is that iterators provide an
+      event-based interface to tables.  Consuming iterators provide
+      many of the same benefits as pure event-based XML parsers, while
+      allowing you to fluidly switch back and forth to a tree-based
+      API when that makes sense.  
+    </p>
+      
+    <p>
+      One concrete example is XML-RPC <code>&lt;value&gt;</code>
+      nodes.  If they contain an element such as
+      <code>&lt;integer&gt;</code>, that's the value of the
+      <code>&lt;value&gt;</code> node.  Otherwise, the character data
+      content of the <code>&lt;value&gt;</code> element is a
+      string-typed value.  The code to process the element must
+      potentially look ahead an arbitrary number of initial character
+      data nodes to find out whether there is an element lurking
+      inside, or it must default to string content.  An event-based
+      strategy can treat the list of children of an element as an
+      arbitrary-length lookahead buffer.
+    </p>
+
+    <h2>Usage hints</h2>
+
+    <p>
+      It is always safe to replace a consuming iterator with a
+      non-consuming iterator; the only consequence may be memory
+      exhaustion when processing huge documents.
+    </p>
+
+    <p>
+      It makes the most sense to use a consuming iterator only as the
+      last step in processing a tree.  Because of how lazy XML trees
+      work, it is not an error to touch child nodes before calling a
+      consuming iterator.
+    </p>
+
+    <p>
+      When recursively processing elements, you should only call a
+      consuming iterator if you know your caller no longer cares about
+      its contents.  A rule of thumb is to only call a consuming
+      iterator inside another consuming iterator.
+    </p>
+  </body>
+</html>

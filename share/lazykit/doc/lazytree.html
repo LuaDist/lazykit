@@ -1,0 +1,192 @@
+<?xml version='1.0'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+  <head>
+    <title>lazytree: lazily construct XML trees</title>
+  </head>
+
+  <body>
+    <h1>lazytree: lazily construct XML trees</h1>
+
+    <p>
+      LazyTree constructs an conventional-seeming XmlTree as its
+      contents are referenced, parsing more source document as
+      necessary to fill out the contents on demand.
+    </p>
+
+    <p>
+      Why is this interesting?  Trees are a natural data model to
+      process XML documents.  A simple tree implementation reads the
+      entire document into memory at once.  For large documents, this
+      can be too expensive.  Although callback and event APIs are
+      memory-efficient, they are painful to program to.
+    </p>
+    
+    <p>Given stylized iterators, memory consumption can be limited to
+    particular subtrees.  Consider:</p>
+
+<pre
+>for i,child in xnpairs_c(tree) do
+  if child.attr.href then 
+    print(child.name)
+    table.insert(references, child)
+  end
+end</pre>
+
+    <p>
+      where the <code>_c</code> family of iterators nils out nodes
+      from their parent before returning them.  If the body of the
+      loop does not retain a reference to the child elsewhere, it will
+      become eligible for garbage collection as soon as the next
+      iteration begins.  See ConsumingXml.
+    </p>
+
+    <p>Although not currently implemented, other consuming forms may
+    interact with the XML parser for greater savings:</p>
+
+<pre>
+&lt;document&gt;
+  &lt;firstname&gt;Jay&lt;/firstname&gt;
+  &lt;lastname&gt;Carlson&lt;/lastname&gt;
+  &lt;bodytext&gt;Spending too much time listening to &lt;ref&gt;In Utero&lt;/ref&gt; can be [...]
+  &lt;title&gt;I Think I'm DOM&lt;/title&gt;</pre>
+
+    <pre>lastname, title = xmlextract.strings_consume(tree, "lastname", "title")</pre>
+
+    <p>The <code>strings_consume</code> filter can potentially turn
+    off character data and other events inside any node it knows it
+    doesn't need (like <code>bodytext</code>), as references to them
+    cannot possibly affect the rest of the program.</p>
+
+    <h2>Dependencies</h2>
+
+    <p>
+      <code>lazytree</code> depends on <code>lxpevent</code> to
+      generate event queues, which depends on LuaExpat.
+    </p>
+    
+    <h2>Cautions</h2>
+
+    <p>
+      Calling the normal <code>ipairs</code> iterator on a lazytree
+      that has not been completely loaded will not work, as
+      <code>ipairs(lz)</code> does not directly reference
+      <code>lz.n</code>.  Use the XmlIter iterators
+      <code>xpairs{_c}</code> and <code>xnpairs{_c}</code>; the second
+      is more convenient anyway.  See XmlIter.
+    </p>
+
+    <h2>Usage</h2>
+    
+    <h3>lazytree.parsestring(s)</h3>
+
+    <p>
+      Returns a tree lazily parsed from the string <code>s</code>.
+    </p>
+
+    <h3>lazytree.parsefile(file)</h3>
+
+    <p>
+      Returns a tree lazily parsed from <code>file</code>.  If
+      <code>file</code> is a string, it is interpreted as a filename
+      and opened; otherwise, <code>file</code> is treated as an io
+      library file object.
+    </p>
+
+    <h3>lazytree.parseevents(event_source)</h3>
+    
+    <p>
+      Returns a tree lazily parsed from the <code>lxpevent</code>
+      <code>event_source</code>.
+    </p>
+
+    <h3>lazytree.load(tree)</h3>
+
+    <p>
+      Force the entire contents of <code>tree</code> to be read in.
+      It is safe to call this on non-lazy trees.
+    </p>
+
+    <h3>lazytree.consume(tree)</h3>
+
+    <p>
+      Indicate <code>tree</code> is no longer needed and may be
+      destroyed.  <code>tree</code> may be either a lazytree or a
+      conventional tree, and should be the last reference to it.
+    </p>
+      
+    <p>
+      Although not currently implemented, calling consume on the part
+      of the lazytree currently being built could tell the lazy parser
+      not to bother populating that portion of the tree.  This is not
+      intended as a general user tool; rather, it is a primitive that
+      can be used by consuming filtering iterators such as
+      <code>xmliter.switch</code> when they notice that a tree they
+      have encountered will be skipped and have no visibility in the
+      application.
+    </p>
+
+    <h3>lazytree.lazyprint(tree)</h3>
+
+    <p>
+      Prints the current contents of a lazytree without further
+      parsing.  Useful for demonstration purposes.
+    </p>
+
+    <h2>Implementation details</h2>
+
+    <p>Given the following XML:</p>
+    
+    <pre>&lt;paragraph justify='centered'&gt;first child&lt;b&gt;bold&lt;/b&gt;second child&lt;/paragraph&gt;</pre>
+
+    <p>A lazytree will appear to have the following contents:</p>
+
+    <pre>lz = {name="paragraph", attr={justify="centered"}, 
+  "first child", 
+  {name="b", "bold", n=1},
+  "second child",
+  n=3
+}</pre>
+
+    <p>However, on the start of parsing, the actual underlying table will contain:</p>
+
+<pre>lz = {name="paragraph", attr={justify="centered"}, 
+  _read_so_far=0
+}</pre>
+
+    <p>After a reference to <code>lz[1]</code>, it will contain:</p>
+
+<pre>lz = {name="paragraph", attr={justify="centered"}, 
+  "first child",
+  _read_so_far=1
+}</pre>
+
+    <p>And after a reference to <code>lz[2]</code>:</p>
+
+    <pre>lz = {name="paragraph", attr={justify="centered"}, 
+  "first child",
+  {name="b", _read_so_far=0}
+}</pre>
+
+    <p>Note that the child is read lazily as well.  However, a
+    reference to <code>lz[3]</code> will force all of
+    <code>lz[2]</code> to be completed:</p>
+
+    <pre>lz = {name="paragraph", attr={justify="centered"}, 
+  "first child",
+  {name="b", "bold", n=1}
+  "second child",
+  _read_so_far=3
+}</pre>
+
+    <p>Reading either <code>lz[4]</code> (which is nil) or
+    <code>lz.n</code> will force the completion of the tree.</p>
+
+    <p>
+      Note that reading from <code>lz.n</code> will force the
+      remainder of the tree to be read, as we don't know how long it's
+      going to be until it closes.
+    </p>
+
+  </body>
+</html>

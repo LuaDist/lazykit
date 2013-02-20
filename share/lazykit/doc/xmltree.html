@@ -1,0 +1,146 @@
+<?xml version='1.0'?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+  <head>
+    <title>xmltree: a mid-level structure for XML</title>
+  </head>
+
+  <body>
+    <h1>xmltree: a mid-level structure for XML</h1>
+    
+    <p>
+      This document describes a mid-level representation of XML as
+      trees in Lua.  It is intended to be saved into the lua-users
+      wiki as a place to remember discussion on this subject.
+    </p>
+
+    <p>
+      The representation is intended to describe data from the XML
+      Infoset, yet remain simple to work with in idiomatic Lua code.
+      The representation is an interface, allowing fancy
+      implementations to use metatables to provide the same interface
+      as bare tables.
+    </p>
+
+    <p>
+      LxpTree and LazyTree implement this.
+    </p>
+
+    <h2>Spec by example</h2>
+
+    <pre>&lt;paragraph justify='centered'&gt;first child&lt;b&gt;bold&lt;/b&gt;second child&lt;/paragraph&gt;</pre>
+
+    <pre>lz = {name="paragraph", attr={justify="centered"}, 
+  "first child",
+  {name="b", "bold", n=1}
+  "second child",
+  n=3
+}</pre>
+
+    <h2>Strawman spec</h2>
+
+    <p>
+      A <dfn>tree</dfn> is a Lua table representation of an element
+      and its contents. The table must have a <code>name</code> key,
+      giving the element name.
+    </p>
+
+    <p>
+      The tree may have a <code>attr</code> key, which gives a table
+      of all of the attributes of the element.  Only string keys are
+      relevant.  (LuaExpat uses numeric keys to mark attributes that
+      were defaulted from the DTD.)  A convenience iterator like
+      <code>xattrpairs(tree)</code> should be provided.
+    </p>
+
+    <p>
+      If the element is not empty, each child node is contained in
+      <code>tree[1]</code>, <code>tree[2]</code>, etc.  Child nodes
+      may be either strings, denoting character data content, or other
+      trees.  
+    </p>
+
+    <p>
+      Parsers should try to merge adjacent character data content.  That is, they should avoid producing something like:
+    </p>
+    
+    <pre
+>{name="p", "Hello w", "orld"}</pre>
+
+    <p>
+      Parsers should include an <code>n</code> key, giving the number
+      of child nodes.  However, to be tolerant of tree literals in
+      code, general-purpose processing code should use code like
+    </p>
+
+    <pre
+>tree.n or table.getn(tree)</pre>
+
+    <p>
+      (found as <code>xmliter.getn(tree)</code>), in the same way they
+      would use <code>table.getn(list)</code> on normal lists instead
+      of <code>list.n</code>.
+    </p>
+
+    <p>
+      (Why a separate <code>getn</code>? This is necessary because
+      <code>table.getn(tree)</code> does not explicitly call for
+      <code>tree.n</code>, instead using <code>rawget(tree,
+      "n")</code>.  Fancy tree implementations may need to use a
+      metatable call to find the number of children.)
+    </p>
+
+    <h2>Things explicitly not modeled</h2>
+
+    <p>
+      Syntactic details of XML source files are out of scope.  To wit:
+    </p>
+
+    <p>
+      The order of attributes on elements is unimportant.
+    </p>
+    
+    <p>
+      The presence of a CDATA section is not interesting; it is just
+      another way to write character data.
+    </p>
+
+    <p>
+      Comments are not interesting.
+    </p>
+
+    <p>
+      The source of attributes, whether explicit or specified in a DTD
+      is not interesting.
+    </p>
+      
+    <h2>Things explicitly modeled</h2>
+
+    <p>
+      All elements, regardless of duplicates.
+    </p>
+    <p>
+      All character data.  That includes mixed content.
+    </p>
+    <p>
+      The order of the above.
+    </p>
+    
+    <h2>Things that should be modeled</h2>
+    
+    <p>
+      DTD.  This could go in <code>root.dtd</code>.
+    </p>
+
+    <p>
+      Encoding.  However, declaring everything to be in UTF-8 might
+      not be so bad---especially for USASCII users....
+    </p>
+
+    <p>
+      Namespaces.  I don't have enough experience with them to propose
+      a design.
+    </p>
+
+  </body>
+</html>
