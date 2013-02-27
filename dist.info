@@ -1,0 +1,59 @@
+type = "x86_64"
+arch = "Ubuntu"
+author = "Jay Carlson"
+depends = {
+[[lua ~> 5.1]],
+[[luaexpat >=1.1]],
+}
+
+desc = "lazykit: tools for XML processing"
+version = "0.1"
+maintainer = "Peter Kapec"
+files = {
+Runtime = {
+[[lib/lua/ciostring.so]],
+[[lib/lua/iostring.lua]],
+[[lib/lua/ioxmlgen.lua]],
+[[lib/lua/lazytree.lua]],
+[[lib/lua/lxpevent.lua]],
+[[lib/lua/lxptree.lua]],
+[[lib/lua/xmlgen.lua]],
+[[lib/lua/xmliter.lua]],
+[[lib/lua/xmlview.lua]],
+[[lib/lua/concatxmlgen/lua.lua]],
+}
+,
+Test = {
+[[share/lazykit/test/benchmark.lua]],
+}
+,
+Example = {
+[[share/lazykit/example//roundtrip.lua]],
+[[share/lazykit/example//recursive.lua~]],
+[[share/lazykit/example//pyrxp.lua]],
+[[share/lazykit/example//xhtml2wiki.lua~]],
+[[share/lazykit/example//roundtrip.lua~]],
+[[share/lazykit/example//xhtml2wiki.lua]],
+[[share/lazykit/example//traces.lua]],
+[[share/lazykit/example//recursive.lua]],
+[[share/lazykit/example//rpc.lua]],
+}
+,
+Data = {
+[[share/lazykit/README]],
+}
+,
+Documentation = {
+[[share/lazykit/doc//xmlconsume.html]],
+[[share/lazykit/doc//xmltree.html]],
+[[share/lazykit/doc//lazytree.html]],
+[[share/lazykit/doc//xmlview.html]],
+[[share/lazykit/doc//xmliter.html]],
+[[share/lazykit/doc//lxptree.html]],
+}
+,
+}
+
+license = "MIT/X11"
+name = "lazykit"
+url = "http://lua-users.org/wiki/LazyKit"
